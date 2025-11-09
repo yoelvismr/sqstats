@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 
 # Configuración
 APP_NAME="SquidStats"
-REPO_URL="https://github.com/kaelthasmanu/SquidStats.git"
+REPO_URL="https://github.com/yoelvismr/sqstats.git"
 DEFAULT_PROD_DIR="/opt/SquidStats"
 DEVELOPMENT_DIR=$(pwd)
 
@@ -454,20 +454,253 @@ EOF
     success "Base de datos SQLite configurada: $db_path"
 }
 
+function check_and_install_mariadb() {
+    info "Verificando MariaDB/MySQL..."
+    
+    # Verificar si MariaDB/MySQL está instalado
+    if is_service_available "mysql" || is_service_available "mariadb"; then
+        # Verificar si el servicio está corriendo
+        if systemctl is-active --quiet mariadb 2>/dev/null || systemctl is-active --quiet mysql 2>/dev/null; then
+            success "✅ MariaDB/MySQL está instalado y ejecutándose"
+            return 0
+        else
+            info "⚠️ MariaDB/MySQL está instalado pero no está ejecutándose"
+            if ask_yes_no "¿Desea iniciar el servicio de base de datos?" "y"; then
+                systemctl start mariadb 2>/dev/null || systemctl start mysql 2>/dev/null
+                if systemctl is-active --quiet mariadb 2>/dev/null || systemctl is-active --quiet mysql 2>/dev/null; then
+                    success "Servicio de base de datos iniciado correctamente"
+                    return 0
+                else
+                    error "No se pudo iniciar el servicio de base de datos"
+                    return 1
+                fi
+            else
+                warning "El servicio de base de datos no está ejecutándose"
+                return 1
+            fi
+        fi
+    else
+        # MariaDB/MySQL no está instalado
+        warning "MariaDB/MySQL no está instalado en el sistema."
+        echo -e "${YELLOW}Se requiere un servidor de base de datos para el modo producción.${NC}"
+        
+        if ask_yes_no "¿Desea instalar MariaDB ahora?" "y"; then
+            info "Instalando MariaDB server..."
+            if apt-get install -y mariadb-server; then
+                success "MariaDB instalado correctamente"
+                # Iniciar y habilitar servicio
+                systemctl start mariadb 2>/dev/null || systemctl start mysql 2>/dev/null
+                systemctl enable mariadb 2>/dev/null || systemctl enable mysql 2>/dev/null
+                return 0
+            else
+                error "Error al instalar MariaDB"
+                return 1
+            fi
+        else
+            warning "MariaDB/MySQL no se instalará. Debe configurar manualmente un servidor de base de datos."
+            info "Para instalar MariaDB/MySQL manualmente:"
+            echo -e "  ${CYAN}sudo apt-get install mariadb-server${NC}"
+            echo -e "  ${CYAN}sudo mysql_secure_installation${NC}"
+            return 1
+        fi
+    fi
+}
+
 function configure_mariadb() {
     local env_file="$1"
-    warning "Configuración de MariaDB/MySQL - Esta funcionalidad necesita ser implementada"
-    # Aquí iría la implementación completa de MariaDB
-    info "Usando SQLite por defecto"
-    configure_sqlite "$env_file"
+    
+    # Verificar e instalar MariaDB si es necesario
+    if ! check_and_install_mariadb; then
+        error "No se puede continuar sin MariaDB/MySQL"
+        return 1
+    fi
+    
+    # Get database credentials
+    echo -e "${YELLOW}--- Configuración de MariaDB/MySQL ---${NC}"
+    read -p "Nombre de la base de datos [squidstats]: " db_name
+    db_name=${db_name:-squidstats}
+    
+    read -p "Usuario de la base de datos [squidstats_user]: " db_user
+    db_user=${db_user:-squidstats_user}
+    
+    while true; do
+        read -s -p "Contraseña para el usuario: " db_pass
+        echo
+        if [ -z "$db_pass" ]; then
+            error "La contraseña no puede estar vacía"
+            continue
+        fi
+        read -s -p "Confirme la contraseña: " db_pass_confirm
+        echo
+        if [ "$db_pass" != "$db_pass_confirm" ]; then
+            error "Las contraseñas no coinciden"
+        else
+            break
+        fi
+    done
+    
+    read -p "Host de la base de datos [localhost]: " db_host
+    db_host=${db_host:-localhost}
+    
+    read -p "Puerto de la base de datos [3306]: " db_port
+    db_port=${db_port:-3306}
+    
+    # Create database and user
+    info "Creando base de datos y usuario..."
+    
+    # Try to connect without password first, then with password
+    local mysql_root_cmd="mysql -u root"
+    if ! $mysql_root_cmd -e "SELECT 1" &>/dev/null; then
+        # Try with sudo
+        mysql_root_cmd="sudo mysql -u root"
+        if ! $mysql_root_cmd -e "SELECT 1" &>/dev/null; then
+            error "No se puede conectar a MySQL como root. Configure manualmente la base de datos."
+            info "Puede necesitar configurar la autenticación root:"
+            echo -e "  ${CYAN}sudo mysql_secure_installation${NC}"
+            echo -e "  ${CYAN}sudo mysql -u root -p${NC}"
+            return 1
+        fi
+    fi
+    
+    # Execute SQL commands
+    $mysql_root_cmd << EOF
+CREATE DATABASE IF NOT EXISTS $db_name CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '$db_user'@'$db_host' IDENTIFIED BY '$db_pass';
+GRANT ALL PRIVILEGES ON $db_name.* TO '$db_user'@'$db_host';
+FLUSH PRIVILEGES;
+EOF
+    
+    if [ $? -eq 0 ]; then
+        local conn_string="mysql+pymysql://$db_user:$db_pass@$db_host:$db_port/$db_name"
+        cat >> "$env_file" << EOF
+
+# Database Configuration - MariaDB
+DATABASE_TYPE=MARIADB
+DATABASE_STRING_CONNECTION=$conn_string
+EOF
+        success "Base de datos MariaDB configurada correctamente"
+        info "Base de datos: $db_name, Usuario: $db_user, Host: $db_host:$db_port"
+    else
+        error "Error al configurar MariaDB"
+        return 1
+    fi
+}
+
+function check_and_install_postgresql() {
+    info "Verificando PostgreSQL..."
+    
+    # Verificar si PostgreSQL está instalado
+    if is_service_available "psql"; then
+        # Verificar si el servicio está corriendo
+        if systemctl is-active --quiet postgresql 2>/dev/null; then
+            success "✅ PostgreSQL está instalado y ejecutándose"
+            return 0
+        else
+            info "⚠️ PostgreSQL está instalado pero no está ejecutándose"
+            if ask_yes_no "¿Desea iniciar el servicio PostgreSQL?" "y"; then
+                systemctl start postgresql
+                if systemctl is-active --quiet postgresql; then
+                    success "Servicio PostgreSQL iniciado correctamente"
+                    return 0
+                else
+                    error "No se pudo iniciar el servicio PostgreSQL"
+                    return 1
+                fi
+            else
+                warning "El servicio PostgreSQL no está ejecutándose"
+                return 1
+            fi
+        fi
+    else
+        # PostgreSQL no está instalado
+        warning "PostgreSQL no está instalado en el sistema."
+        echo -e "${YELLOW}Se requiere un servidor de base de datos para el modo producción.${NC}"
+        
+        if ask_yes_no "¿Desea instalar PostgreSQL ahora?" "y"; then
+            info "Instalando PostgreSQL..."
+            if apt-get install -y postgresql postgresql-contrib; then
+                success "PostgreSQL instalado correctamente"
+                # Iniciar y habilitar servicio
+                systemctl start postgresql
+                systemctl enable postgresql
+                return 0
+            else
+                error "Error al instalar PostgreSQL"
+                return 1
+            fi
+        else
+            warning "PostgreSQL no se instalará. Debe configurar manualmente un servidor de base de datos."
+            info "Para instalar PostgreSQL manualmente:"
+            echo -e "  ${CYAN}sudo apt-get install postgresql postgresql-contrib${NC}"
+            return 1
+        fi
+    fi
 }
 
 function configure_postgresql() {
     local env_file="$1"
-    warning "Configuración de PostgreSQL - Esta funcionalidad necesita ser implementada"
-    # Aquí iría la implementación completa de PostgreSQL
-    info "Usando SQLite por defecto"
-    configure_sqlite "$env_file"
+    
+    # Verificar e instalar PostgreSQL si es necesario
+    if ! check_and_install_postgresql; then
+        error "No se puede continuar sin PostgreSQL"
+        return 1
+    fi
+    
+    # Get database credentials
+    echo -e "${YELLOW}--- Configuración de PostgreSQL ---${NC}"
+    read -p "Nombre de la base de datos [squidstats]: " db_name
+    db_name=${db_name:-squidstats}
+    
+    read -p "Usuario de la base de datos [squidstats_user]: " db_user
+    db_user=${db_user:-squidstats_user}
+    
+    while true; do
+        read -s -p "Contraseña para el usuario: " db_pass
+        echo
+        if [ -z "$db_pass" ]; then
+            error "La contraseña no puede estar vacía"
+            continue
+        fi
+        read -s -p "Confirme la contraseña: " db_pass_confirm
+        echo
+        if [ "$db_pass" != "$db_pass_confirm" ]; then
+            error "Las contraseñas no coinciden"
+        else
+            break
+        fi
+    done
+    
+    read -p "Host de la base de datos [localhost]: " db_host
+    db_host=${db_host:-localhost}
+    
+    read -p "Puerto de la base de datos [5432]: " db_port
+    db_port=${db_port:-5432}
+    
+    # Create database and user as postgres user
+    info "Creando base de datos y usuario..."
+    
+    sudo -u postgres psql << EOF
+CREATE USER $db_user WITH PASSWORD '$db_pass';
+CREATE DATABASE $db_name OWNER $db_user;
+GRANT ALL PRIVILEGES ON DATABASE $db_name TO $db_user;
+\c $db_name;
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+EOF
+    
+    if [ $? -eq 0 ]; then
+        local conn_string="postgresql+psycopg2://$db_user:$db_pass@$db_host:$db_port/$db_name"
+        cat >> "$env_file" << EOF
+
+# Database Configuration - PostgreSQL
+DATABASE_TYPE=POSTGRESQL
+DATABASE_STRING_CONNECTION=$conn_string
+EOF
+        success "Base de datos PostgreSQL configurada correctamente"
+        info "Base de datos: $db_name, Usuario: $db_user, Host: $db_host:$db_port"
+    else
+        error "Error al configurar PostgreSQL"
+        return 1
+    fi
 }
 
 function create_environment_file() {
@@ -682,16 +915,32 @@ function setup_systemd_service() {
     step "Configurando servicio Systemd"
     
     local service_file="/etc/systemd/system/squidstats.service"
+    
+    # Verificar que los archivos necesarios existen
+    if [ ! -f "$APP_DIR/wsgi.py" ]; then
+        error "Archivo wsgi.py no encontrado en $APP_DIR"
+        return 1
+    fi
+    
+    if [ ! -f "$APP_DIR/gunicorn.conf.py" ]; then
+        error "Archivo gunicorn.conf.py no encontrado en $APP_DIR"
+        return 1
+    fi
+    
+    if [ ! -f "$VENV_DIR/bin/gunicorn" ]; then
+        error "Gunicorn no está instalado en el entorno virtual"
+        return 1
+    fi
+    
     cat > "$service_file" << EOF
 [Unit]
 Description=SquidStats Web Application
 Documentation=https://github.com/kaelthasmanu/SquidStats
 After=network.target nginx.service squid.service
 Wants=network.target
-Requires=nginx.service squid.service
 
 [Service]
-Type=exec
+Type=simple
 User=$SERVICE_USER
 Group=$SERVICE_USER
 WorkingDirectory=$APP_DIR
@@ -701,9 +950,13 @@ EnvironmentFile=$APP_DIR/.env
 ExecStart=$VENV_DIR/bin/gunicorn -c $APP_DIR/gunicorn.conf.py wsgi:app
 ExecReload=/bin/kill -s HUP \$MAINPID
 Restart=always
-RestartSec=5
+RestartSec=10
 StartLimitInterval=60
 StartLimitBurst=3
+
+; Timeout para inicio
+TimeoutStartSec=30
+TimeoutStopSec=30
 
 ; Security
 NoNewPrivileges=yes
@@ -733,16 +986,54 @@ EOF
     systemctl enable squidstats.service
     
     if [ "$IS_UPDATE" = false ]; then
-        systemctl start squidstats.service && sleep 3
-        if systemctl is-active --quiet squidstats.service; then
-            success "Servicio Systemd configurado e iniciado"
+        info "Iniciando servicio squidstats..."
+        if systemctl start squidstats.service; then
+            # Esperar un poco más y verificar el estado
+            sleep 5
+            if systemctl is-active --quiet squidstats.service; then
+                success "Servicio Systemd configurado e iniciado"
+                
+                # Mostrar logs recientes para diagnóstico
+                info "Mostrando logs del servicio (últimas 10 líneas):"
+                journalctl -u squidstats.service -n 10 --no-pager
+            else
+                error "Error al iniciar el servicio Systemd"
+                info "Mostrando logs detallados del servicio:"
+                journalctl -u squidstats.service -n 20 --no-pager
+                systemctl status squidstats.service
+                return 1
+            fi
         else
-            error "Error al iniciar el servicio Systemd"
+            error "No se pudo iniciar el servicio Systemd"
+            info "Mostrando logs del servicio:"
+            journalctl -u squidstats.service -n 20 --no-pager
             systemctl status squidstats.service
             return 1
         fi
     else
-        systemctl restart squidstats.service && success "Servicio Systemd actualizado y reiniciado" || error "Error al reiniciar el servicio Systemd"
+        info "Reiniciando servicio squidstats..."
+        if systemctl restart squidstats.service; then
+            sleep 5
+            if systemctl is-active --quiet squidstats.service; then
+                success "Servicio Systemd actualizado y reiniciado"
+                
+                # Mostrar logs recientes
+                info "Mostrando logs del servicio (últimas 10 líneas):"
+                journalctl -u squidstats.service -n 10 --no-pager
+            else
+                error "Error al reiniciar el servicio Systemd"
+                info "Mostrando logs detallados del servicio:"
+                journalctl -u squidstats.service -n 20 --no-pager
+                systemctl status squidstats.service
+                return 1
+            fi
+        else
+            error "Error al reiniciar el servicio Systemd"
+            info "Mostrando logs del servicio:"
+            journalctl -u squidstats.service -n 20 --no-pager
+            systemctl status squidstats.service
+            return 1
+        fi
     fi
 }
 
@@ -846,6 +1137,7 @@ function finalize_installation() {
         echo -e "  Estado servicio: ${CYAN}systemctl status squidstats${NC}"
         echo -e "  Ver logs: ${CYAN}journalctl -u squidstats -f${NC}"
         echo -e "  Reiniciar: ${CYAN}systemctl restart squidstats${NC}"
+        echo -e "  Logs detallados: ${CYAN}journalctl -u squidstats -n 50${NC}"
         
         local ip_address=$(hostname -I | awk '{print $1}')
         if [ -n "$ip_address" ]; then
@@ -906,23 +1198,112 @@ function main_installation() {
 
 function main() {
     case "${1:-}" in
-        "--update") IS_UPDATE=true; main_installation ;;
-        "--uninstall") 
-            detect_install_mode
-            echo -e "${YELLOW}⚠️  ESTA OPERACIÓN DESINSTALARÁ SQUIDSTATS DEL SISTEMA${NC}"
-            if ask_yes_no "¿Está seguro de que desea continuar?" "n"; then
-                [ "$INSTALL_MODE" = "production" ] && systemctl stop squidstats.service 2>/dev/null || true
-                [ "$INSTALL_MODE" = "production" ] && systemctl disable squidstats.service 2>/dev/null || true
-                [ "$INSTALL_MODE" = "production" ] && rm -f /etc/systemd/system/squidstats.service
-                [ "$INSTALL_MODE" = "production" ] && rm -f /etc/nginx/sites-available/squidstats
-                [ "$INSTALL_MODE" = "production" ] && rm -f /etc/nginx/sites-enabled/squidstats
-                [ "$INSTALL_MODE" = "production" ] && rm -f /etc/logrotate.d/squidstats
-                [ "$INSTALL_MODE" = "production" ] && userdel squidstats 2>/dev/null || true
-                [ "$INSTALL_MODE" = "production" ] && rm -rf "$DEFAULT_PROD_DIR" && rm -rf /var/log/squidstats
-                [ "$INSTALL_MODE" = "development" ] && rm -rf "$APP_DIR/venv"
-                success "✅ SquidStats ha sido desinstalado"
+        "--update") 
+            IS_UPDATE=true
+            # Modo actualización - detección automática
+            step "🔄 INICIANDO ACTUALIZACIÓN DE SQUIDSTATS"
+            
+            # Detectar instalaciones existentes directamente
+            if [ -f "$DEFAULT_PROD_DIR/.env" ] || (check_systemd && systemctl is-active --quiet squidstats 2>/dev/null); then
+                INSTALL_MODE="production"
+                APP_DIR="$DEFAULT_PROD_DIR"
+                info "✅ Instalación de producción detectada en: $APP_DIR"
+            elif [ -f "$DEVELOPMENT_DIR/SquidStats/.env" ] || [ -f "$DEVELOPMENT_DIR/.env" ]; then
+                INSTALL_MODE="development"
+                if [ -f "$DEVELOPMENT_DIR/SquidStats/.env" ] || [ -d "$DEVELOPMENT_DIR/SquidStats/.git" ]; then
+                    APP_DIR="$DEVELOPMENT_DIR/SquidStats"
+                else
+                    APP_DIR="$DEVELOPMENT_DIR"
+                fi
+                info "✅ Instalación de desarrollo detectada en: $APP_DIR"
             else
+                error "No se pudo detectar ninguna instalación de SquidStats para actualizar"
+                info "Instalaciones buscadas:"
+                info "  - Producción: $DEFAULT_PROD_DIR"
+                info "  - Desarrollo: $DEVELOPMENT_DIR"
+                info "Use './install.sh' sin opciones para una instalación nueva"
+                exit 1
+            fi
+            
+            # Continuar con la actualización
+            main_installation
+            ;;
+        "--uninstall") 
+            # Modo desinstalación - detección automática
+            step "Modo desinstalación detectado"
+            
+            # Detectar instalaciones existentes directamente
+            if [ -f "$DEFAULT_PROD_DIR/.env" ] || (check_systemd && systemctl is-active --quiet squidstats 2>/dev/null); then
+                INSTALL_MODE="production"
+                APP_DIR="$DEFAULT_PROD_DIR"
+                info "Instalación de producción detectada en: $APP_DIR"
+            elif [ -f "$DEVELOPMENT_DIR/SquidStats/.env" ] || [ -f "$DEVELOPMENT_DIR/.env" ]; then
+                INSTALL_MODE="development"
+                if [ -f "$DEVELOPMENT_DIR/SquidStats/.env" ] || [ -d "$DEVELOPMENT_DIR/SquidStats/.git" ]; then
+                    APP_DIR="$DEVELOPMENT_DIR/SquidStats"
+                else
+                    APP_DIR="$DEVELOPMENT_DIR"
+                fi
+                info "Instalación de desarrollo detectada en: $APP_DIR"
+            else
+                error "No se pudo detectar ninguna instalación de SquidStats"
+                info "Busca manualmente en:"
+                info "  - Producción: $DEFAULT_PROD_DIR"
+                info "  - Desarrollo: $DEVELOPMENT_DIR"
+                exit 1
+            fi
+            
+            echo -e "${YELLOW}⚠️  ESTA OPERACIÓN DESINSTALARÁ SQUIDSTATS DEL SISTEMA${NC}"
+            echo -e "Modo detectado: ${CYAN}$INSTALL_MODE${NC}"
+            echo -e "Directorio: ${CYAN}$APP_DIR${NC}"
+            echo -e "Usuario del servicio: ${CYAN}squidstats${NC}"
+            
+            if ! ask_yes_no "¿Está seguro de que desea continuar?" "n"; then
                 info "Desinstalación cancelada"
+                exit 0
+            fi
+            
+            # Proceder con desinstalación
+            step "Iniciando desinstalación"
+            
+            # Detener y eliminar servicios (solo producción)
+            if [ "$INSTALL_MODE" = "production" ]; then
+                info "Deteniendo servicios..."
+                systemctl stop squidstats.service 2>/dev/null || true
+                systemctl disable squidstats.service 2>/dev/null || true
+                rm -f /etc/systemd/system/squidstats.service
+                systemctl daemon-reload
+                
+                # Eliminar configuración nginx
+                rm -f /etc/nginx/sites-available/squidstats
+                rm -f /etc/nginx/sites-enabled/squidstats
+                if command -v nginx &> /dev/null; then
+                    nginx -t && systemctl reload nginx 2>/dev/null || true
+                fi
+                
+                # Eliminar logrotate
+                rm -f /etc/logrotate.d/squidstats
+                
+                # Eliminar usuario
+                userdel squidstats 2>/dev/null || true
+                
+                # Eliminar directorios de aplicación
+                info "Eliminando archivos de aplicación..."
+                rm -rf "$DEFAULT_PROD_DIR"
+                rm -rf /var/log/squidstats
+                rm -rf /var/run/squidstats
+            else
+                # En desarrollo, solo eliminar el entorno virtual
+                info "Eliminando entorno virtual..."
+                rm -rf "$APP_DIR/venv"
+                info "Archivos de aplicación se mantienen en: $APP_DIR"
+            fi
+            
+            success "✅ SquidStats ha sido desinstalado"
+            
+            if [ "$INSTALL_MODE" = "development" ]; then
+                echo -e "\n${YELLOW}Nota:${NC} Los archivos de la aplicación se mantienen en ${CYAN}$APP_DIR${NC}"
+                echo "Puede eliminarlos manualmente si lo desea: rm -rf $APP_DIR"
             fi
             ;;
         "--help"|"-h")
@@ -932,8 +1313,15 @@ function main() {
             echo "  --uninstall     Desinstala SquidStats"
             echo "  --help, -h      Muestra esta ayuda"
             ;;
-        "") main_installation ;;
-        *) error "Parámetro no reconocido: $1"; echo "Uso: $0 [--update|--uninstall|--help]"; exit 1 ;;
+        "")
+            # Instalación normal - usa el menú interactivo
+            main_installation
+            ;;
+        *)
+            error "Parámetro no reconocido: $1"
+            echo "Uso: $0 [--update|--uninstall|--help]"
+            exit 1
+            ;;
     esac
 }
 
