@@ -2,8 +2,11 @@ import os
 import sys
 
 # Add the project directory to the Python path
-project_dir = os.path.dirname(os.path.abspath(__file__))
+project_dir = "/opt/SquidStats"
 sys.path.insert(0, project_dir)
+
+# Set environment variable for production
+os.environ['IN_GUNICORN'] = 'true'
 
 from app import create_app
 
@@ -26,7 +29,7 @@ def setup_production_scheduler():
         "interval", id="check_notifications", minutes=30, misfire_grace_time=1800
     )
     def check_notifications_task():
-        repo_path = os.path.dirname(os.path.abspath(__file__))
+        repo_path = "/opt/SquidStats"  # Ruta absoluta
         has_updates, messages = has_remote_commits_with_messages(repo_path)
         set_commit_notifications(has_updates, messages)
 
