@@ -18,7 +18,7 @@ def logs():
         users_data = get_users_logs(db)
 
         return render_template(
-            "logsView.html",
+            "users.html",
             users_data=users_data,
             page_icon="user.ico",
             page_title="Actividad usuarios",
