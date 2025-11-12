@@ -39,10 +39,15 @@ def create_app():
     scheduler = APScheduler()
     scheduler.init_app(app)
     
-    # Only start scheduler if not in production with Gunicorn
-    if os.getenv('WERKZEUG_RUN_MAIN') == 'true' or not os.environ.get('IN_GUNICORN'):
+    # Solo iniciar el scheduler si NO estamos en Gunicorn
+    # En producción con Gunicorn, el scheduler se maneja en wsgi.py
+    if not os.environ.get('IN_GUNICORN'):
         scheduler.start()
-        logger.info("Scheduler started in main process")
+        logger.info("Scheduler started in main process (development mode)")
+        # Configurar tareas del scheduler solo en desarrollo
+        setup_scheduler_tasks(scheduler)
+    else:
+        logger.info("Running in Gunicorn - scheduler will be handled by wsgi.py")
 
     # Register custom filters
     register_filters(app)
