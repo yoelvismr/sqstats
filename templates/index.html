@@ -1,6 +1,9 @@
-{% extends 'base.html' %} {% block title %}Inicio | Dashboard Squid{% endblock
-%} {% block content %}
 
+{% extends 'base.html' %} 
+{% block title %}Inicio | Dashboard Squid{% endblock %}
+
+{% block content %}
+<!-- Control de refresh mejorado para responsive -->
 <div class="flex flex-wrap items-center gap-3 mb-4 bg-white/70 dark:bg-gray-800/60 px-3 py-2 rounded-md border border-gray-200 shadow-sm text-sm max-w-full">
   <label for="refresh-interval" class="text-gray-700 dark:text-gray-200 font-medium select-none">⏱️</label>
   <div class="flex items-center gap-1">
@@ -15,7 +18,7 @@
   <span id="persist-status" class="text-[11px] text-gray-400 ml-auto pr-1 opacity-0 transition-opacity"></span>
 </div>
 
-<div id="datos-conexiones" class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+<div id="datos-conexiones" class="w-full">
   {% include 'partials/conexiones.html' %}
 </div>
 

@@ -1,0 +1,85 @@
+<script src="{{ url_for('static', filename='src/tailwind.min.js') }}"></script>
+    <!-- Scripts de Flowbite (UI components) -->
+    <script src="{{ url_for('static', filename='src/flowbite.min.js') }}"></script>
+    <!-- Alpine.js -->
+    <script src="{{ url_for('static', filename='src/alpine.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='src/tailwind.min.js') }}"></script>
+    <script>
+      // Enhanced Navbar Functionality
+      document.addEventListener("DOMContentLoaded", function () {
+        // ...existing code...
+
+        // Notificaciones dinámicas desde la API
+        function renderNotifications(data) {
+          const ul = document.querySelector(".max-h-72.overflow-y-auto");
+          if (!ul) return;
+          ul.innerHTML = "";
+          if (data.has_updates && data.commits.length > 0) {
+            data.commits.forEach((msg, idx) => {
+              ul.innerHTML += `
+                <li class="px-4 py-3 flex items-start hover:bg-gray-50 cursor-pointer">
+                  <span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-yellow-100 text-yellow-600 mr-3">
+                    <i class="fas fa-bell"></i>
+                  </span>
+                  <div class="flex-1">
+                    <p class="text-sm text-gray-700">${msg}</p>
+                    <span class="text-xs text-gray-400">Actualización de código</span>
+                  </div>
+                </li>
+              `;
+            });
+          } else {
+            ul.innerHTML = `<li class='px-4 py-3 text-gray-500 text-center'>No hay notificaciones nuevas</li>`;
+          }
+        }
+
+        function fetchNotifications() {
+          fetch("/api/notifications")
+            .then((res) => res.json())
+            .then((data) => {
+              renderNotifications(data);
+              // Actualizar contador
+              const badge = document.querySelector(".fa-bell").parentElement.querySelector(".absolute");
+              if (badge) {
+                badge.textContent = data.has_updates ? data.commits.length : "0";
+              }
+            })
+            .catch(() => {});
+        }
+
+        // Llamar al cargar y cada 5 minutos
+        fetchNotifications();
+        setInterval(fetchNotifications, 5 * 60 * 1000);
+
+        // ...existing code...
+      });
+
+      // Close modals when clicking outside
+      document.addEventListener("click", function (e) {
+        if (e.target.classList.contains("modal-overlay")) {
+          // Close any open modal
+          const modals = document.querySelectorAll("[x-show]");
+          modals.forEach((modal) => {
+            const alpineData = Alpine.$data(modal);
+            if (alpineData) {
+              alpineData.showSquidModal = false;
+              alpineData.showWebModal = false;
+            }
+          });
+        }
+      });
+
+      // Add escape key handling for modals
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          const modals = document.querySelectorAll("[x-show]");
+          modals.forEach((modal) => {
+            const alpineData = Alpine.$data(modal);
+            if (alpineData) {
+              alpineData.showSquidModal = false;
+              alpineData.showWebModal = false;
+            }
+          });
+        }
+      });
+    </script>
