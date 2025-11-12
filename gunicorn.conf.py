@@ -1,33 +1,30 @@
 import os
 
+# Configuración simplificada de Gunicorn para producción
+
 # Server socket
 bind = "127.0.0.1:5000"
-backlog = 2048
 
-# Worker processes (reducido para desarrollo/pruebas)
+# Worker processes
 workers = 1
 worker_class = "sync"
 worker_connections = 1000
-max_requests = 1000
-max_requests_jitter = 100
+
+# Timeouts
 timeout = 120
 keepalive = 2
 
-# Logging - usar rutas absolutas
+# Maximum requests per worker
+max_requests = 1000
+max_requests_jitter = 100
+
+# Logging
 accesslog = "/var/log/squidstats/gunicorn_access.log"
 errorlog = "/var/log/squidstats/gunicorn_error.log"
 loglevel = "info"
-capture_output = True
 
 # Process naming
 proc_name = "squidstats"
-
-# Server mechanics
-daemon = False
-pidfile = "/var/run/squidstats/gunicorn.pid"
-umask = 0
-
-tmp_upload_dir = "/tmp"
 
 # Environment variables
 raw_env = [
@@ -39,11 +36,5 @@ raw_env = [
 # Preload app for better performance
 preload_app = True
 
-# Worker tmp dir
-worker_tmp_dir = "/dev/shm"
-
-# Graceful timeout for worker shutdown
-graceful_timeout = 30
-
-# Change to the correct working directory
+# Working directory
 chdir = "/opt/SquidStats"
