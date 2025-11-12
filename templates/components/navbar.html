@@ -8,34 +8,34 @@
       </button>
     </div>
     <!-- Brand/Logo Section -->
-    <div class="flex items-center gap-3 font-bold text-xl text-white no-underline">
+    <div class="flex items-center gap-3 font-bold text-xl text-white no-underline cursor-pointer">
       <i class="fas fa-chart-line text-blue-300 text-2xl"></i>
       <span class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-blue-300 hidden sm:inline">SquidStats</span>
       <span class="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-blue-300 sm:hidden">SquidStats</span>
     </div>
     <!-- Desktop Navigation Links -->
     <div class="hidden sm:flex items-center gap-1 lg:gap-2">
-      <a href="/" class="flex items-center gap-2 px-3 lg:px-4 py-2 text-gray-200 rounded-lg font-medium text-sm transition-all duration-300 relative hover:text-white hover:bg-white/10" data-tooltip="Panel principal con conexiones activas">
+      <a href="/" class="flex items-center gap-2 px-3 lg:px-4 py-2 text-gray-200 rounded-lg font-medium text-sm transition-all duration-300 relative hover:text-white hover:bg-white/10 hover:-translate-y-0.5" data-tooltip="Panel principal con conexiones activas">
         <i class="fas fa-home text-base"></i>
         <span class="font-medium">Inicio</span>
       </a>
-      <a href="/stats" class="flex items-center gap-2 px-3 lg:px-4 py-2 text-gray-200 rounded-lg font-medium text-sm transition-all duration-300 relative hover:text-white hover:bg-white/10" data-tooltip="Estadísticas de rendimiento del cache">
+      <a href="/stats" class="flex items-center gap-2 px-3 lg:px-4 py-2 text-gray-200 rounded-lg font-medium text-sm transition-all duration-300 relative hover:text-white hover:bg-white/10 hover:-translate-y-0.5" data-tooltip="Estadísticas de rendimiento del cache">
         <i class="fas fa-chart-bar text-base"></i>
         <span class="font-medium">Estadísticas</span>
       </a>
-      <a href="/logs" class="flex items-center gap-2 px-3 lg:px-4 py-2 text-gray-200 rounded-lg font-medium text-sm transition-all duration-300 relative hover:text-white hover:bg-white/10" data-tooltip="Actividad y logs de usuarios">
+      <a href="/logs" class="flex items-center gap-2 px-3 lg:px-4 py-2 text-gray-200 rounded-lg font-medium text-sm transition-all duration-300 relative hover:text-white hover:bg-white/10 hover:-translate-y-0.5" data-tooltip="Actividad y logs de usuarios">
         <i class="fas fa-user-friends text-base"></i>
         <span class="font-medium">Usuarios</span>
       </a>
-      <a href="/reports" class="flex items-center gap-2 px-3 lg:px-4 py-2 text-gray-200 rounded-lg font-medium text-sm transition-all duration-300 relative hover:text-white hover:bg-white/10" data-tooltip="Reportes y gráficas avanzadas">
+      <a href="/reports" class="flex items-center gap-2 px-3 lg:px-4 py-2 text-gray-200 rounded-lg font-medium text-sm transition-all duration-300 relative hover:text-white hover:bg-white/10 hover:-translate-y-0.5" data-tooltip="Reportes y gráficas avanzadas">
         <i class="fas fa-chart-simple text-base"></i>
         <span class="font-medium">Reportes</span>
       </a>
-      <a href="/blacklist" class="flex items-center gap-2 px-3 lg:px-4 py-2 text-gray-200 rounded-lg font-medium text-sm transition-all duration-300 relative hover:text-white hover:bg-white/10" data-tooltip="Sitios bloqueados y actividad restringida">
+      <a href="/blacklist" class="flex items-center gap-2 px-3 lg:px-4 py-2 text-gray-200 rounded-lg font-medium text-sm transition-all duration-300 relative hover:text-white hover:bg-white/10 hover:-translate-y-0.5" data-tooltip="Sitios bloqueados y actividad restringida">
         <i class="fas fa-ban text-base"></i>
         <span class="font-medium">Blacklist</span>
       </a>
-      <a href="/auditoria" class="flex items-center gap-2 px-3 lg:px-4 py-2 text-gray-200 rounded-lg font-medium text-sm transition-all duration-300 relative hover:text-white hover:bg-white/10" data-tooltip="Auditoría de actividad por usuario y fecha">
+      <a href="/auditoria" class="flex items-center gap-2 px-3 lg:px-4 py-2 text-gray-200 rounded-lg font-medium text-sm transition-all duration-300 relative hover:text-white hover:bg-white/10 hover:-translate-y-0.5" data-tooltip="Auditoría de actividad por usuario y fecha">
         <i class="fas fa-magnifying-glass text-base"></i>
         <span class="font-medium">Auditoría</span>
       </a>
@@ -49,7 +49,7 @@
           <span class="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-semibold rounded-full border-2 border-white shadow-lg">3</span>
         </button>
         <!-- Dropdown Notificaciones -->
-        <div x-show="open" @click.away="open = false" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="origin-top-right absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50" style="display: none">
+        <div x-show="open" @click.away="open = false" x-transition:enter="transition ease-out duration-200 hover:-translate-y-0.5" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" class="origin-top-right absolute right-0 mt-2 w-80 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-50" style="display: none">
           <div class="py-2 px-4 border-b border-gray-200 flex items-center justify-between">
             <span class="font-semibold text-gray-800 text-sm">Notificaciones</span>
             <button @click="open = false" class="text-gray-400 hover:text-gray-600 focus:outline-none">
@@ -58,7 +58,7 @@
           </div>
           <ul class="max-h-72 overflow-y-auto divide-y divide-gray-100">
             <!-- Contenido notificaciones... -->
-                         <li class="px-4 py-3 flex items-start hover:bg-gray-50 cursor-pointer">
+            <li class="px-4 py-3 flex items-start hover:bg-gray-50 cursor-pointer">
               <span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-600 mr-3">
                 <Información del Sistema:
                   ✅ Hostname del servidor
@@ -76,7 +76,7 @@
                 <span class="text-xs text-gray-400">Hace 2 minutos</span>
               </div>
             </li>
-                        <li class="px-4 py-3 flex items-start hover:bg-gray-50 cursor-pointer">
+            <li class="px-4 py-3 flex items-start hover:bg-gray-50 cursor-pointer">
               <span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-100 text-green-600 mr-3">
                 <i class="fas fa-check-circle"></i>
               </span>
@@ -102,11 +102,11 @@
         </div>
       </div>
       <!-- Botones Squid y Web -->
-      <button @click="showSquidModal = true" class="action-btn flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-xs bg-gradient-to-r from-emerald-600 to-emerald-400 text-white shadow hover:from-emerald-700 hover:to-emerald-600 transition-all duration-300" data-tooltip="Actualizar paquetes y configuración de Squid">
+      <button @click="showSquidModal = true" class="action-btn flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-xs bg-gradient-to-r from-emerald-600 to-emerald-400 text-white shadow hover:from-emerald-700 hover:to-emerald-600 transition-all duration-300 hover:-translate-y-0.5" data-tooltip="Actualizar paquetes y configuración de Squid">
         <i class="fas fa-sync-alt"></i>
         <span class="hidden lg:inline">Squid</span>
       </button>
-      <button @click="showWebModal = true" class="action-btn flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-xs bg-gradient-to-r from-purple-600 to-purple-400 text-white shadow hover:from-purple-700 hover:to-purple-600 transition-all duration-300" data-tooltip="Actualizar aplicación web SquidStats">
+      <button @click="showWebModal = true" class="action-btn flex items-center gap-2 px-3 py-2 rounded-lg font-semibold text-xs bg-gradient-to-r from-purple-600 to-purple-400 text-white shadow hover:from-purple-700 hover:to-purple-600 transition-all duration-300 hover:-translate-y-0.5" data-tooltip="Actualizar aplicación web SquidStats">
         <i class="fas fa-cloud-download-alt"></i>
         <span class="hidden lg:inline">Web</span>
       </button>
